@@ -1,0 +1,22 @@
+# Jellyfin Auditor
+
+This is a simple Deno script that will connect to a running Jellufin API and check it's contents looking for suspect entires. 
+
+## Audits
+The following audits are performed. The results are markdown files generated into the reports directory. The files are formatted to contain links to the movies/shows in question. All files will be created, even if nothing is found.
+
+- ### Looking for movies with years in the title.
+  Sometimes a movie will not be matched but the media find will get poster or other images for it. This makes them look like they are properly matched on casual inspection. This produces two lists, one containing movies that are _probably_ not matched (specifically ones including a year in parenthesis) and another of movies that are _possibly_ unmatched which simple contain any single 4 digit number. This second list often finds false positives since a surprising number of movies and years in the titles.
+- ### Looking for television series with suspicious season names.
+  I have quite a few items that are not sorted in the way Jellyfin likes having come from a Plex media server that was more forgiving on file names and structure. One common problem I've notices is that if the episodes are not explicitly seasoned with a `s##e##` in the title then they get placed into an "Unknown Season" season, even if the show only contains a single season. This will list those first in the report, then any other season name that looks a bit funky - specifically any that is not "Specials" or "Season #", which often can find other strange things.
+- ### Missing Episodes
+  While having missing episodes is normal in a lot of cases sometimes it eludes to a show being mis-matched or maybe you just didn't get something placed into the directory (for instance maybe the movie was placed in movies and not as a Special for the show). This report will always have all sorts of things in it that are difficult to find and it's primary purpose it to check which shows are missing bulks of content.
+
+More can be added, and probably will as I run across new interesting ways things have found to become broken.
+
+## Running
+Presuming you have [Deno](https://docs.deno.com/runtime/) installed and working.
+
+Rename the `.env.example` folder to just `.env` and update accordingly, then you can run `deno run audit` and it will start. It logs what it's doing while it's doing it but the first step, getting all the items from Jellyfin, does take a while especially with large servers.
+
+The default deno dev command is also still there and works as expected.

@@ -1,0 +1,9 @@
+{
+  "tasks": {
+    "audit": "deno run --allow-env --allow-net --allow-write --allow-read main.js",
+    "dev": "deno run --watch --allow-env --allow-net --allow-write --allow-read main.js"
+  },
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1"
+  }
+}
