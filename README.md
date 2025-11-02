@@ -1,6 +1,6 @@
 # Jellyfin Auditor
 
-This is a simple Deno script that will connect to a running Jellufin API and check it's contents looking for suspect entires. 
+This is a simple Deno script that will connect to a running Jellufin API and check it's contents looking for suspect entires.
 
 ## Audits
 The following audits are performed. The results are markdown files generated into the reports directory. The files are formatted to contain links to the movies/shows in question. All files will be created, even if nothing is found.
@@ -19,4 +19,8 @@ Presuming you have [Deno](https://docs.deno.com/runtime/) installed and working.
 
 Rename the `.env.example` folder to just `.env` and update accordingly, then you can run `deno run audit` and it will start. It logs what it's doing while it's doing it but the first step, getting all the items from Jellyfin, does take a while especially with large servers.
 
-The default deno dev command is also still there and works as expected.
+There are two attributes that can be passed in order to do extra things.
+- **--save-raw** Will save the raw data from the server to a ` raw.json` file loaded in the reports directory. This can be used to save querying the server every audit.
+- **--load-raw** This will tell it to load the previously mentioned ` raw.json` file in the reports directory.
+
+The default `deno task dev` command is also still there and works as expected however there is an extra `deno task dev-fast` that will use the `--load-raw` command in the process.

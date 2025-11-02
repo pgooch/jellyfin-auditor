@@ -67,21 +67,43 @@ async function QueryJellyfin( requestPath = '/', data = false ){
 /**
  * Start the actual scripin'
  */
+// Make sure we have a place to save stuff
+ensureDir(SAVE_PATH);
 
-// Authenticate with Jellyfin
-console.log(`Authenticating ${JF_Auth.username} with Jellyfin server at ${JF_URI}...`);
-if( JF_Auth.username === null || JF_Auth.password === null ){
-  throw new Error('Unable to authenticate, no username/password provided.')
+// Check if we are loading data from a file instead
+let JellyfinItemsRaw;
+if( Deno.args.includes("--load-raw") ){
+  console.log(`Attempting to load saved raw dump...`);
+  try {
+    JellyfinItemsRaw = JSON.parse(Deno.readTextFileSync(SAVE_PATH+" raw.json"));
+    console.log('Found '+JellyfinItemsRaw.length+' records...')
+  } catch (error) {
+    console.error("Error reading saved raw JSON file.", error);
+  }
+}else{
+
+  // Authenticate with Jellyfin
+  console.log(`Authenticating ${JF_Auth.username} with Jellyfin server at ${JF_URI}...`);
+  if( JF_Auth.username === null || JF_Auth.password === null ){
+    throw new Error('Unable to authenticate, no username/password provided.')
+  }
+  await QueryJellyfin('/Users/AuthenticateByName', {'username': JF_Auth.username, 'pw': JF_Auth.password})
+
+  // Load up absolutely everything since were gonna need most all of it for one check or another
+  const totalRecords = Math.min(LIMIT, await QueryJellyfin('/Items?Recursive=true&Limit=0').then(r => r.TotalRecordCount));
+  console.log(`Loading all ${ totalRecords } items from the server, this could take a while...`);
+  JellyfinItemsRaw = await QueryJellyfin('/Items?Recursive=true'+(LIMIT===Infinity?"":'&Limit='+LIMIT)).then(r => r.Items);
 }
-await QueryJellyfin('/Users/AuthenticateByName', {'username': JF_Auth.username, 'pw': JF_Auth.password})
 
-// Load up absolutely everything since were gonna need most all of it for one check or another
-const totalRecords = Math.min(LIMIT, await QueryJellyfin('/Items?Recursive=true&Limit=0').then(r => r.TotalRecordCount));
-console.log(`Loading all ${ totalRecords } items from the server, this could take a while...`);
-const JellyfinItemsRaw = await QueryJellyfin('/Items?Recursive=true'+(LIMIT===Infinity?"":'&Limit='+LIMIT)).then(r => r.Items);
+// Check if we're saving a copy of that data for later use
+if( Deno.args.includes("--save-raw") ){
+  console.log('Saving JSON dump of raw data...')
+  Deno.writeTextFileSync(SAVE_PATH+" raw.json", JSON.stringify(JellyfinItemsRaw));
+}
 
 // Preprocess it a bit, getting indexes grouped by type so we can process one at a time.
 console.log(`Pre-processing items...`)
+const totalRecords = JellyfinItemsRaw.length;
 const JellyfinItems = {};
 const JellyfinTypes = {};
 
@@ -93,11 +115,10 @@ JellyfinItemsRaw.forEach(( item )=>{
   JellyfinTypes[item.Type].push(item.Id);
 })
 
+
+
 // Note we';'ve started the main audit
-ensureDir(SAVE_PATH);
 console.log(`Starting audits...`)
-
-
 
 /// Check for movies that appear to have hears in the title
 const CheckMoviesWithYear = new Promise(( resolve, _reject )=>{
