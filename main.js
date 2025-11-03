@@ -124,8 +124,9 @@ console.log(`Starting audits...`)
 const CheckMoviesWithYear = new Promise(( resolve, _reject )=>{
   console.log('   Checking for movies with years in the title...')
   let _output = '';
-  _output += `# Movies with Years in Title\n`;
-  _output += `_Audit generated ${format(new Date(), "yyyy-MM-dd HH:mm:ss")} against ${totalRecords} items in server located at ${JF_URI}._\n`
+  _output += `# Movies with Years in Title\n\n`;
+  _output += `_Audit generated ${format(new Date(), "yyyy-MM-dd HH:mm:ss")} against ${totalRecords} items in server located at ${JF_URI}._\n\n`
+  _output += `These are movies that appear to have a year in the title which is often indicitive of an unmatched movie. They are broken up into Probably, where the year is in parenthesis, and possible when it's just a year. It's not uncommon for movies to have a year in the title so things get placed into the possible category overzealously.\n\n`
 
   const probablyUnmatched = []
   const potentiallyUnmatched = []
@@ -140,7 +141,7 @@ const CheckMoviesWithYear = new Promise(( resolve, _reject )=>{
     }
   })
 
-  _output += `\n## Probably Unmatched\n`;
+  _output += `## Probably Unmatched\n`;
   probablyUnmatched.sort(collator.compare).forEach(( movieLink ) => {
     _output += ` - ${movieLink}\n`;
   })
@@ -150,7 +151,7 @@ const CheckMoviesWithYear = new Promise(( resolve, _reject )=>{
     _output += ` - ${movieLink}\n`;
   })
 
-  Deno.writeTextFileSync(SAVE_PATH+"movies-with-years-in-title.md", _output);
+  Deno.writeTextFileSync(SAVE_PATH+"movies with years in title.md", _output);
   resolve();
 })
 
@@ -160,8 +161,9 @@ const CheckMoviesWithYear = new Promise(( resolve, _reject )=>{
 const CheckSuspiciousSeasons = new Promise(( resolve, _reject )=>{
   console.log('   Checking for seasons that don\'t look quite right...')
   let _output = '';
-  _output += `# Television Series with Suspicious Seasons\n`;
-  _output += `_Audit generated ${format(new Date(), "yyyy-MM-dd HH:mm:ss")} against ${totalRecords} items in server located at ${JF_URI}._\n`
+  _output += `# Television Series with Suspicious Seasons\n\n`;
+  _output += `_Audit generated ${format(new Date(), "yyyy-MM-dd HH:mm:ss")} against ${totalRecords} items in server located at ${JF_URI}._\n\n`
+  _output += `These are shows with episodes in either an unknown season or in a season that is not "Season #" or "Specials". This is indicative of the shows file structure not being correct and Jellyfin being unable to determine what season the upsides are for or a show with extras in it that are not properly places for Jellyfin.\n\n`
 
   const questionableSeasons = {}
   JellyfinTypes.Season.forEach(( SeasonId ) => {
@@ -190,7 +192,7 @@ const CheckSuspiciousSeasons = new Promise(( resolve, _reject )=>{
     })
   })
 
-  Deno.writeTextFileSync(SAVE_PATH+"television-series-with-suspicious-seasons.md", _output);
+  Deno.writeTextFileSync(SAVE_PATH+"television series with suspicious seasons.md", _output);
   resolve();
 })
 
@@ -200,16 +202,65 @@ const CheckSuspiciousSeasons = new Promise(( resolve, _reject )=>{
 const CheckMissingEpisodes = new Promise(( resolve, _reject )=>{
   console.log('   Checking for missing episodes...')
   let _output = '';
-  _output += `# Television Series with Missing Episodes\n`;
-  _output += `_Audit generated ${format(new Date(), "yyyy-MM-dd HH:mm:ss")} against ${totalRecords} items in server located at ${JF_URI}._\n`
+  _output += `# Television Series with Missing Episodes\n\n`;
+  _output += `_Audit generated ${format(new Date(), "yyyy-MM-dd HH:mm:ss")} against ${totalRecords} items in server located at ${JF_URI}._\n\n`
+  _output += `These are shows with missing episodes during their regular seasons. While this can be just because they have not been properly released, or that you just quit following the show it is also a sign that episodes are nor being properly captured causing them to show up in a seasons but as unassigned episodes.\n\n`
 
   const missingEpisodesByShow = {};
 
   JellyfinTypes.Episode.forEach(( episodeId ) => {
     const episode = JellyfinItems[episodeId];
-    if( episode.Container === undefined ){
-      const seriesLink = `\n## [${JellyfinItems[episodeId].SeriesName}](${JF_URI}/web/#/details?id=${JellyfinItems[episodeId].SeriesId}&serverId=${JellyfinItems[episodeId].ServerId})\n` 
-      const episodeLink = `- [${JellyfinItems[episodeId].Name}](${JF_URI}/web/#/details?id=${JellyfinItems[episodeId].Id}&serverId=${JellyfinItems[episodeId].ServerId})\n` 
+    if( episode.Container === undefined && episode.SeasonName.match(/^Season \d+/gm) ){
+      const seriesLink =  `- ### [${JellyfinItems[episodeId].SeriesName}](${JF_URI}/web/#/details?id=${JellyfinItems[episodeId].SeriesId}&serverId=${JellyfinItems[episodeId].ServerId})\n` 
+      const seasonLink =  `  - #### [${JellyfinItems[episodeId].SeasonName}](#test)\n`;
+      const episodeLink = `    - [${JellyfinItems[episodeId].Name}](${JF_URI}/web/#/details?id=${JellyfinItems[episodeId].Id}&serverId=${JellyfinItems[episodeId].ServerId})\n` 
+
+      if( missingEpisodesByShow[seriesLink] === undefined ){
+        missingEpisodesByShow[seriesLink] = {};
+      }
+      if( missingEpisodesByShow[seriesLink][seasonLink] === undefined ){
+        missingEpisodesByShow[seriesLink][seasonLink] = [];
+      }
+      missingEpisodesByShow[seriesLink][seasonLink].push(episodeLink)
+
+    }
+  })
+
+  Object.keys(missingEpisodesByShow).sort(collator.compare).forEach(( seriesLink ) => {
+    _output += seriesLink
+     Object.keys(missingEpisodesByShow[seriesLink]).sort(collator.compare).forEach(( seasonLink ) => {
+      _output += seasonLink
+      missingEpisodesByShow[seriesLink][seasonLink].sort(collator.compare).forEach(( episodeLink ) => {
+        _output += episodeLink
+      })
+     })
+  })
+
+  Deno.writeTextFileSync(SAVE_PATH+"television series with missing episodes.md", _output);
+  resolve();
+})
+
+
+
+
+
+
+// Check for missing specaials
+// TODO - make this smarter not just a copy of the above with a single character changed.
+const CheckMissingSpecials = new Promise(( resolve, _reject )=>{
+  console.log('   Checking for missing specials...')
+  let _output = '';
+  _output += `# Television Series with Missing Specials\n\n`;
+  _output += `_Audit generated ${format(new Date(), "yyyy-MM-dd HH:mm:ss")} against ${totalRecords} items in server located at ${JF_URI}._\n\n`
+  _output += `These are shows with missing specials or other items that are not part of their regular seasons. This is the partner file to the missing episodes during regular seasons. Missing specials are far more common and less likely to impact viewing but they can still be indicative of an issue, especially on series where you'd expect that you have it all.\n\n`
+
+  const missingEpisodesByShow = {};
+
+  JellyfinTypes.Episode.forEach(( episodeId ) => {
+    const episode = JellyfinItems[episodeId];
+    if( episode.Container === undefined && !episode.SeasonName.match(/^Season \d+/gm) ){
+      const seriesLink =  `- ### [${JellyfinItems[episodeId].SeriesName}](${JF_URI}/web/#/details?id=${JellyfinItems[episodeId].SeriesId}&serverId=${JellyfinItems[episodeId].ServerId})\n` 
+      const episodeLink = `    - [${JellyfinItems[episodeId].Name}](${JF_URI}/web/#/details?id=${JellyfinItems[episodeId].Id}&serverId=${JellyfinItems[episodeId].ServerId})\n` 
 
       if( missingEpisodesByShow[seriesLink] === undefined ){
         missingEpisodesByShow[seriesLink] = [];
@@ -221,18 +272,18 @@ const CheckMissingEpisodes = new Promise(( resolve, _reject )=>{
 
   Object.keys(missingEpisodesByShow).sort(collator.compare).forEach(( seriesLink ) => {
     _output += seriesLink
-    missingEpisodesByShow[seriesLink].sort(collator.compare).forEach(( episodeLink ) => {
-      _output += episodeLink
-    })
+      missingEpisodesByShow[seriesLink].sort(collator.compare).forEach(( episodeLink ) => {
+        _output += episodeLink
+     })
   })
 
-  Deno.writeTextFileSync(SAVE_PATH+"television-series-with-missing-episodes.md", _output);
+  Deno.writeTextFileSync(SAVE_PATH+"television series with missing specials.md", _output);
   resolve();
 })
 
 
 
 // Wrap things up
-Promise.all([CheckMoviesWithYear, CheckSuspiciousSeasons, CheckMissingEpisodes]).then(()=>{
+Promise.all([CheckMoviesWithYear, CheckSuspiciousSeasons, CheckMissingEpisodes, CheckMissingSpecials]).then(()=>{
   console.log('Audits complete.')
 })
