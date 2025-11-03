@@ -212,7 +212,7 @@ const CheckMissingEpisodes = new Promise(( resolve, _reject )=>{
     const episode = JellyfinItems[episodeId];
     if( episode.Container === undefined && episode.SeasonName.match(/^Season \d+/gm) ){
       const seriesLink =  `- ### [${JellyfinItems[episodeId].SeriesName}](${JF_URI}/web/#/details?id=${JellyfinItems[episodeId].SeriesId}&serverId=${JellyfinItems[episodeId].ServerId})\n` 
-      const seasonLink =  `  - #### [${JellyfinItems[episodeId].SeasonName}](#test)\n`;
+      const seasonLink =  `  - #### [${JellyfinItems[episodeId].SeasonName}](${JF_URI}/web/#/details?id=${JellyfinItems[episodeId].SeasonId}&serverId=${JellyfinItems[episodeId].ServerId})\n`;
       const episodeLink = `    - [${JellyfinItems[episodeId].Name}](${JF_URI}/web/#/details?id=${JellyfinItems[episodeId].Id}&serverId=${JellyfinItems[episodeId].ServerId})\n` 
 
       if( missingEpisodesByShow[seriesLink] === undefined ){
